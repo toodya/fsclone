@@ -28,7 +28,32 @@ if ENABLE_TINFO
 LIBS+=-ltinfo
 endif
 
+QEMU_ROOT_DIR=/root/Documents/cdp/qemu-4.0.0
+SYS_LIBS_DIR=/usr/lib/x86_64-linux-gnu
+
+LIBS+=-L$(SYS_LIBS_DIR) -pthread 
+LIBS+=-Wl,--whole-archive $(QEMU_ROOT_DIR)/libqemu.a -Wl,--no-whole-archive 
+LIBS+=$(QEMU_ROOT_DIR)/libqemuutil.a
+LIBS+=$(SYS_LIBS_DIR)/libgthread-2.0.a
+LIBS+=$(SYS_LIBS_DIR)/libglib-2.0.a
+LIBS+=$(SYS_LIBS_DIR)/libaio.a
+LIBS+=$(SYS_LIBS_DIR)/libnettle.a
+LIBS+=$(SYS_LIBS_DIR)/libfdisk.a
+LIBS+=$(SYS_LIBS_DIR)/libblkid.a
+LIBS+=$(SYS_LIBS_DIR)/libuuid.a
+LIBS+=-lm
+LIBS+=-lrt
+LIBS+=-lz
+LIBS+=-lgnutls
+LIBS+=-laio
+LIBS+=-lcurl
+LIBS+=-lrbd
+LIBS+=-lrados
+LIBS+=-lssh2
+LIBS+=-lbz2
+
 AM_CFLAGS=-D_FILE_OFFSET_BITS=64
+CFLAGS+=-fPIE -DPIE -m64 -mcx16 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wall -std=gnu99 -g3
 
 if ENABLE_MEMTRACE
 AM_CFLAGS+=-DMEMTRACE -DMEMWATCH -DMW_STDIO
@@ -38,10 +63,19 @@ if ENABLE_NCURSESW
 AM_CFLAGS+=-I/usr/include/ncursesw
 endif
 
+CFLAGS+=-I/usr/include
+CFLAGS+=-I/usr/include/blkid
+CFLAGS+=-I/usr/include/glib-2.0
+CFLAGS+=-I/usr/lib/x86_64-linux-gnu/glib-2.0/include
+CFLAGS+=-I${QEMU_ROOT_DIR}
+CFLAGS+=-I${QEMU_ROOT_DIR}/linux-headers
+CFLAGS+=-I${QEMU_ROOT_DIR}/include
+
+
 version.h: FORCE
 	$(TOOLBOX) --update-version
 
-main_files=main.c partclone.c progress.c checksum.c torrent_helper.c partclone.h progress.h gettext.h checksum.h torrent_helper.h bitmap.h
+main_files=main.c partclone.c progress.c checksum.c torrent_helper.c partclone.h progress.h gettext.h checksum.h torrent_helper.h bitmap.h vd.h vd.c
 
 partclone_info_SOURCES=info.c partclone.c checksum.c partclone.h fs_common.h checksum.h
 partclone_restore_SOURCES=$(main_files) ddclone.c ddclone.h
@@ -93,7 +127,7 @@ endif
 if ENABLE_XFS
 sbin_PROGRAMS += partclone.xfs
 partclone_xfs_SOURCES=$(main_files) xfsclone.c xfsclone.h $(XFS_SOURCE)
-partclone_xfs_CFLAGS=-Ixfs/include -Ixfs/libxfs/ -Ixfs/include/xfs/ -DXFS -D_GNU_SOURCE -DNDEBUG  $(UUID_CFLAGS) 
+partclone_xfs_CFLAGS=-Ixfs/include -Ixfs/libxfs/ -Ixfs/include/xfs/ -DXFS -D_GNU_SOURCE -DNDEBUG $(UUID_CFLAGS) 
 partclone_xfs_LDADD=-lrt -lpthread -luuid -lcrypto
 endif
 

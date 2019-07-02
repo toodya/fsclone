@@ -58,6 +58,7 @@ cmd_opt opt;
 #include "fs_common.h"
 /// cmd_opt structure defined in partclone.h
 fs_cmd_opt fs_opt;
+#include "vd.h"
 
 /**
  * main function - for clone or restore data
@@ -85,6 +86,7 @@ int main(int argc, char **argv) {
 	pthread_t		prog_thread;
 	void			*p_result;
 	struct stat st_dev;
+	virtual_disk_t vd = NULL;
 
 	static const char *const bad_sectors_warning_msg =
 		"*************************************************************************\n"
@@ -164,11 +166,17 @@ int main(int argc, char **argv) {
 	}
 
 #ifndef CHKIMG
-	dfw = open_target(target, &opt);
-	if (opt.blockfile == 0) {
-	    if (dfw == -1) {
-		log_mesg(0, 1, 1, debug, "Error exit\n");
-	    }
+	
+	if (opt.cdp) {
+		dfw = -1;
+		vd = vd_open(target, opt.vdisk_fmt, opt.partition_offset, debug);
+	} else {
+		dfw = open_target(target, &opt);
+		if (opt.blockfile == 0) {
+			if (dfw == -1) {
+				log_mesg(0, 1, 1, debug, "Error exit\n");
+			}
+		}
 	}
 #else
 	dfw = -1;
@@ -504,55 +512,63 @@ int main(int argc, char **argv) {
 
 			log_mesg(2, 0, 0, debug, "blocks_read = %i\n", blocks_read);
 
-			/// calculate checksum
-			if (opt.blockfile == 0) {
-				for (i = 0; i < blocks_read; ++i) {
-
-					memcpy(write_buffer + write_offset,
-						read_buffer + i * block_size, block_size);
-
-					write_offset += block_size;
-
-					update_checksum(checksum, read_buffer + i * block_size, block_size);
-
-					if (blocks_per_cs > 0 && ++blocks_in_cs == blocks_per_cs) {
-					    log_mesg(3, 0, 0, debug, "CRC = %x%x%x%x \n", checksum[0], checksum[1], checksum[2], checksum[3]);
-
-						memcpy(write_buffer + write_offset, checksum, cs_size);
-
-						++cs_added;
-						write_offset += cs_size;
-
-						blocks_in_cs = 0;
-						if (cs_reseed)
-							init_checksum(img_opt.checksum_mode, checksum, debug);
-					}
-				}
-			}
-
-			/// write buffer to target
-			if (opt.blockfile == 1) {
-				// SHA1 for torrent info
-				// Not always bigger or smaller than 16MB
-
-				// first we write out block_id * block_size for filename
-				// because when calling write_block_file
-				// we will create a new file to describe a continuous block (or buffer is full)
-				// and never write to same file again
-				torrent_start_offset(&torrent, block_id * block_size);
-				torrent_end_length(&torrent, blocks_read * block_size);
-
-				torrent_update(&torrent, read_buffer, blocks_read * block_size);
-
-				if (opt.torrent_only == 1) {
-					w_size = blocks_read * block_size;
-				} else {
-					w_size = write_block_file(target, read_buffer, blocks_read * block_size, block_id * block_size, &opt);
+			if (opt.cdp && vd != NULL) {
+				w_size = vd_write(vd, offset, read_buffer, r_size);
+				if (w_size != r_size) {
+					log_mesg(0, 1, 1, debug, "image write ERROR:%s\n", strerror(errno));
 				}
 			} else {
-				w_size = write_all(&dfw, write_buffer, write_offset, &opt);
-				if (w_size != write_offset)
-					log_mesg(0, 1, 1, debug, "image write ERROR:%s\n", strerror(errno));
+				// write_virtual_disk(disk, read_buffer, r_size, offset);
+				/// calculate checksum
+				if (opt.blockfile == 0) {
+					for (i = 0; i < blocks_read; ++i) {
+
+						memcpy(write_buffer + write_offset,
+							read_buffer + i * block_size, block_size);
+
+						write_offset += block_size;
+
+						update_checksum(checksum, read_buffer + i * block_size, block_size);
+
+						if (blocks_per_cs > 0 && ++blocks_in_cs == blocks_per_cs) {
+							log_mesg(3, 0, 0, debug, "CRC = %x%x%x%x \n", checksum[0], checksum[1], checksum[2], checksum[3]);
+
+							memcpy(write_buffer + write_offset, checksum, cs_size);
+
+							++cs_added;
+							write_offset += cs_size;
+
+							blocks_in_cs = 0;
+							if (cs_reseed)
+								init_checksum(img_opt.checksum_mode, checksum, debug);
+						}
+					}
+				}
+
+				/// write buffer to target
+				if (opt.blockfile == 1) {
+					// SHA1 for torrent info
+					// Not always bigger or smaller than 16MB
+
+					// first we write out block_id * block_size for filename
+					// because when calling write_block_file
+					// we will create a new file to describe a continuous block (or buffer is full)
+					// and never write to same file again
+					torrent_start_offset(&torrent, block_id * block_size);
+					torrent_end_length(&torrent, blocks_read * block_size);
+
+					torrent_update(&torrent, read_buffer, blocks_read * block_size);
+
+					if (opt.torrent_only == 1) {
+						w_size = blocks_read * block_size;
+					} else {
+						w_size = write_block_file(target, read_buffer, blocks_read * block_size, block_id * block_size, &opt);
+					}
+				} else {
+					w_size = write_all(&dfw, write_buffer, write_offset, &opt);
+					if (w_size != write_offset)
+						log_mesg(0, 1, 1, debug, "image write ERROR:%s\n", strerror(errno));
+				}
 			}
 
 			/// count copied block
@@ -1129,7 +1145,11 @@ int main(int argc, char **argv) {
 	    log_mesg(0, 1, 1, debug, "%s, %i, thread join error\n", __func__, __LINE__);
 	update_pui(&prog, copied, block_id, done);
 #ifndef CHKIMG
-	sync_data(dfw, &opt);
+	if (opt.cdp && vd != NULL) {
+		vd_sync(vd);
+	} else {
+		sync_data(dfw, &opt);
+	}
 #endif
 	print_finish_info(opt);
 
@@ -1138,6 +1158,9 @@ int main(int argc, char **argv) {
 	/// close target
 	if (dfw != -1)
 		close_target(dfw);
+	if (vd != NULL) {
+		vd_close(vd);
+	}
 	/// free bitmp
 	free(bitmap);
 	close_pui(pui);

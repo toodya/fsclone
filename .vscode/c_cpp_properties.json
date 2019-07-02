@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/usr/include",
+                "/usr/local/include",
+                "/usr/include/ext2fs",
+                "/root/Documents/cdp/qemu-4.0.0",
+                "/root/Documents/cdp/qemu-4.0.0/linux-headers",
+                "/root/Documents/cdp/qemu-4.0.0/include",
+                "/usr/include",
+                "/usr/include/blkid",
+                "/usr/include/glib-2.0",
+                "/usr/lib/x86_64-linux-gnu/glib-2.0/include",
+                "${workspaceFolder}/*",
+                "${workspaceFolder}/src/btrfs",
+                "${workspaceFolder}/src/exfat",
+                "${workspaceFolder}/src/f2fs",
+                "${workspaceFolder}/src/ufs",
+                "${workspaceFolder}/src/xfs",
+                "${workspaceFolder}/src/xfs/libxfs",
+                "${workspaceFolder}/src/xfs/include",
+                "${workspaceFolder}/src/xfs/include/xfs",
+                "${workspaceFolder}/src/**"
+            ],            
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}

@@ -125,6 +125,10 @@ struct cmd_opt
     int checksum_mode;
     int reseed_checksum;
     unsigned long blocks_per_checksum;
+
+    int64_t partition_offset;
+    char *vdisk_fmt;
+    int cdp;
 };
 typedef struct cmd_opt cmd_opt;
 

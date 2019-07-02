@@ -499,7 +499,7 @@ static void print_dentry(__u32 depth, __u8 *name,
 	name_len = le16_to_cpu(de_blk->dentry[idx].name_len);
 	next_idx = idx + (name_len + F2FS_SLOT_LEN - 1) / F2FS_SLOT_LEN;
 
-	bit_offset = find_next_bit((unsigned long *)de_blk->dentry_bitmap,
+	bit_offset = find_next_bit1((unsigned long *)de_blk->dentry_bitmap,
 			NR_DENTRY_IN_BLOCK, next_idx);
 	if (bit_offset >= NR_DENTRY_IN_BLOCK && last_blk)
 		last_de = 1;

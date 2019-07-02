@@ -13,8 +13,12 @@
 
 
 #include <config.h>
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+#ifndef _LARGEFILE64_SOURCE
 #define _LARGEFILE64_SOURCE
+#endif
 #include <features.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -320,7 +324,7 @@ void parse_options(int argc, char **argv, cmd_opt* opt) {
 #elif DD
 	static const char *sopt = "-hvd::L:o:O:s:f:CFINiqWBz:E:n:Tt";
 #else
-	static const char *sopt = "-hvd::L:cx:brDo:O:s:f:RCFINiqWBz:E:a:k:Kn:Tt";
+	static const char *sopt = "-hvd::L:cx:brDo:O:s:f:RCFINiqWBz:E:a:k:Kn:Ttp:m:M";
 #endif
 
 	static const struct option lopt[] = {
@@ -345,6 +349,9 @@ void parse_options(int argc, char **argv, cmd_opt* opt) {
 		{ "compresscmd",	required_argument,	NULL,	'x' },
 		{ "restore",		no_argument,		NULL,   'r' },
 		{ "dev-to-dev",		no_argument,		NULL,   'b' },
+		{"partition_offset", required_argument, NULL, 'p'},
+		{"vdisk_fmt", required_argument, NULL, 'm'},
+		{"cdp_mode", no_argument, NULL, 'M'},
 #endif
 		{ "domain",		no_argument,		NULL,   'D' },
 		{ "offset_domain",	required_argument,	NULL,   OPT_OFFSET_DOMAIN },
@@ -393,6 +400,9 @@ void parse_options(int argc, char **argv, cmd_opt* opt) {
 	opt->reseed_checksum = 1;
 	opt->blocks_per_checksum = 0;
 	opt->blockfile = 0;
+	opt->partition_offset = 0;
+	opt->vdisk_fmt = "vmdk";
+	opt->cdp = 0;
 
 
 #ifdef DD
@@ -472,6 +482,16 @@ void parse_options(int argc, char **argv, cmd_opt* opt) {
 			case 'b':
 				opt->dd++;
 				mode=1;
+				break;
+			case 'p':
+                assert(optarg != NULL);
+				opt->partition_offset = atoll(optarg);
+				break;
+			case 'm':
+				opt->vdisk_fmt = optarg;
+				break;
+			case 'M':
+				opt->cdp++;
 				break;
 #endif
 			case 'D':
@@ -980,7 +1000,9 @@ void load_image_desc(int* ret, cmd_opt* opt, image_head_v2* img_head, file_syste
 void write_image_desc(int* ret, file_system_info fs_info, image_options img_opt, cmd_opt* opt) {
 
 	image_desc_v2 buf_v2;
-
+	if (*ret == -1) {
+		return;
+	}
 	init_image_head_v2(&buf_v2.head);
 
 	memcpy(&buf_v2.fs_info, &fs_info, sizeof(file_system_info));
@@ -996,6 +1018,10 @@ void write_image_desc(int* ret, file_system_info fs_info, image_options img_opt,
 void write_image_bitmap(int* ret, file_system_info fs_info, image_options img_opt, unsigned long* bitmap, cmd_opt* opt) {
 
 	int i, debug = opt->debug;
+
+	if (*ret == -1) {
+		return;
+	}
 
 	switch(img_opt.bitmap_mode) {
 
@@ -1532,8 +1558,10 @@ int open_source(char* source, cmd_opt* opt) {
 		}
 		if (mp){ free(mp); mp = NULL;}
 
-		if ((ret = open(source, flags, S_IRUSR)) == -1)
+		if ((ret = open(source, flags, S_IRUSR)) == -1) {
+			perror("xxxx");
 			log_mesg(0, 1, 1, debug, "clone: open %s error\n", source);
+		}
 
 	} else if ((opt->restore) || (ddd_block_device == 0)) {
 

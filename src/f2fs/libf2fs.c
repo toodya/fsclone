@@ -178,7 +178,7 @@ static inline unsigned long __ffs(unsigned long word)
 	return num;
 }
 
-unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
+unsigned long find_next_bit1(const unsigned long *addr, unsigned long size,
                 unsigned long offset)
 {
         const unsigned long *p = addr + BIT_WORD(offset);
