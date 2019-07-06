@@ -121,6 +121,7 @@ int main(int argc, char **argv) {
 	//if(opt.debug)
 	open_log(opt.logfile);
 
+	libvd_init(argc, argv);
 	/**
 	 * using Text User Interface
 	 */
@@ -1174,6 +1175,7 @@ int main(int argc, char **argv) {
 #ifdef MEMTRACE
 	muntrace();
 #endif
+	libvd_destroy();
 	return 0;      /// finish
 }
 
